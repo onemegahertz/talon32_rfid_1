@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import DeviceSim from "./components/DeviceSim";
 import FirmwareView from "./components/FirmwareView";
+import IntegrationSection from "./components/IntegrationSection";
 import ReportStudio from "./components/ReportStudio";
 import { BomSection, GuideSection, RulesSection, WiringSection } from "./components/InfoSections";
 import { IconChip, IconDownload, IconArrowR, Reveal, SectionHead } from "./components/ui";
