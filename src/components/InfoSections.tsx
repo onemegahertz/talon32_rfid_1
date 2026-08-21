@@ -143,35 +143,43 @@ export function BomSection() {
 /* ============================================================
    03 · ПОДКЛЮЧЕНИЕ
    ============================================================ */
-const WIRE_GROUPS: { title: string; rows: [string, string, string][] }[] = [
+/* цвета проводов: от, куда, цвет, hex, примечание */
+const WIRE_ROWS: { group: string; rows: [string, string, string, string, string][] }[] = [
   {
-    title: "RC522 → ESP32 (SPI)",
+    group: "Считыватель RC522 · SPI",
     rows: [
-      ["SDA (SDS)", "GPIO 5", "выбор чипа"],
-      ["SCK", "GPIO 18", "тактирование SPI"],
-      ["MOSI", "GPIO 23", "данные к модулю"],
-      ["MISO", "GPIO 19", "данные от модуля"],
-      ["RST", "GPIO 27", "сброс чипа"],
-      ["3.3V", "3V3", "питание — только 3.3V!"],
-      ["GND", "GND", "общий провод"],
+      ["RC522 · 3.3V", "ESP32 · 3V3", "Красный", "#e05252", "питание модуля — строго 3.3V!"],
+      ["RC522 · GND", "ESP32 · GND", "Чёрный", "#5a615c", "общий провод"],
+      ["RC522 · SDA (SDS)", "ESP32 · GPIO 5", "Жёлтый", "#e5c94e", "выбор чипа (SS)"],
+      ["RC522 · SCK", "ESP32 · GPIO 18", "Оранжевый", "#e59a4e", "тактирование SPI"],
+      ["RC522 · MOSI", "ESP32 · GPIO 23", "Синий", "#4e86e5", "данные к модулю"],
+      ["RC522 · MISO", "ESP32 · GPIO 19", "Зелёный", "#45e08f", "данные от модуля"],
+      ["RC522 · RST", "ESP32 · GPIO 27", "Белый", "#d7e6dc", "сброс чипа"],
     ],
   },
   {
-    title: "DS3231 → ESP32 (I²C)",
+    group: "Часы реального времени DS3231 · I²C",
     rows: [
-      ["SDA", "GPIO 21", "линия данных"],
-      ["SCL", "GPIO 22", "линия тактирования"],
-      ["VCC", "3V3", "питание"],
-      ["GND", "GND", "общий провод"],
+      ["DS3231 · VCC", "ESP32 · 3V3", "Красный", "#e05252", "питание (общая шина 3.3V)"],
+      ["DS3231 · GND", "ESP32 · GND", "Чёрный", "#5a615c", "общий провод"],
+      ["DS3231 · SDA", "ESP32 · GPIO 21", "Жёлто-зелёный", "#b8e54e", "линия данных I²C"],
+      ["DS3231 · SCL", "ESP32 · GPIO 22", "Серый", "#9aa39d", "линия тактирования I²C"],
     ],
   },
   {
-    title: "Индикация и управление",
+    group: "Индикация, звук, кнопка",
     rows: [
-      ["Зелёный светодиод (+)", "GPIO 26", "через резистор 220 Ом на GND"],
-      ["Красный светодиод (+)", "GPIO 25", "через резистор 220 Ом на GND"],
-      ["Зуммер (+)", "GPIO 32", "пассивный пьезо, (−) на GND"],
-      ["Кнопка", "GPIO 33 ↔ GND", "в прошивке включён INPUT_PULLUP"],
+      ["Светодиод зелёный (+)", "ESP32 · GPIO 26", "Зелёный", "#45e08f", "через резистор 220 Ом, (−) на GND"],
+      ["Светодиод красный (+)", "ESP32 · GPIO 25", "Красный", "#e05252", "через резистор 220 Ом, (−) на GND"],
+      ["Зуммер пассивный (+)", "ESP32 · GPIO 32", "Фиолетовый", "#b48ae0", "(−) на GND, тон задаёт прошивка"],
+      ["Кнопка тактовая", "GPIO 33 ↔ GND", "Коричневый", "#a5713f", "второй вывод на GND, подтяжка в прошивке"],
+    ],
+  },
+  {
+    group: "Питание терминала",
+    rows: [
+      ["Блок питания 5V ⎓ 2A", "ESP32 · micro-USB", "—", "", "питает весь терминал целиком"],
+      ["Батарейка CR1220", "держатель DS3231", "—", "", "часы идут даже при отключении питания"],
     ],
   },
 ];
@@ -253,6 +261,129 @@ function Schematic() {
   );
 }
 
+/* ---------- общая архитектура проекта ---------- */
+function SystemSchematic() {
+  const flow = "flow-line";
+  const mono = { fontFamily: "JetBrains Mono, monospace" } as const;
+  const disp = { fontFamily: "Unbounded, sans-serif" } as const;
+
+  const Terminal = ({ x, num, name, locId }: { x: number; num: string; name: string; locId: string }) => (
+    <g>
+      <rect x={x} y={205} width={250} height={150} rx={6} fill="#122419" stroke="#e5a95f" strokeWidth="1.6" />
+      <text x={x + 125} y={228} textAnchor="middle" fill="#e5a95f" fontSize="11" style={mono}>
+        ТЕРМИНАЛ {num} · LOCATION_ID = {locId}
+      </text>
+      {/* ESP32 */}
+      <rect x={x + 18} y={245} width={72} height={88} rx={4} fill="#1a3527" stroke="#45805f" strokeWidth="1.3" />
+      <text x={x + 54} y={286} textAnchor="middle" fill="#d7e6dc" fontSize="11" fontWeight="bold" style={disp}>ESP32</text>
+      <text x={x + 54} y={302} textAnchor="middle" fill="#74a88c" fontSize="8.5" style={mono}>журнал · Wi-Fi</text>
+      {/* RC522 с пульсацией */}
+      <circle cx={x + 155} cy={288} r={34} fill="none" stroke="#d18a3e" strokeWidth="1.6" />
+      <circle cx={x + 155} cy={288} r={20} fill="none" stroke="#d18a3e" strokeWidth="1.1" opacity="0.7" />
+      <circle cx={x + 155} cy={288} r={6} fill="#d18a3e" opacity="0.6" />
+      <circle cx={x + 155} cy={288} r={34} fill="none" stroke="#d18a3e" strokeWidth="1.2">
+        <animate attributeName="r" values="34;52" dur="1.7s" repeatCount="indefinite" />
+        <animate attributeName="opacity" values="0.6;0" dur="1.7s" repeatCount="indefinite" />
+      </circle>
+      <text x={x + 155} y={333} textAnchor="middle" fill="#74a88c" fontSize="8.5" style={mono}>RC522 · 13.56 МГц</text>
+      {/* DS3231 + LEDs + buzzer */}
+      <rect x={x + 208} y={245} width={26} height={34} rx={3} fill="#1a3527" stroke="#45805f" strokeWidth="1.1" />
+      <text x={x + 221} y={266} textAnchor="middle" fill="#74a88c" fontSize="6.5" style={mono}>DS3231</text>
+      <circle cx={x + 213} cy={298} r={4.5} fill="#45e08f">
+        <animate attributeName="opacity" values="1;0.25;1" dur="1.6s" repeatCount="indefinite" />
+      </circle>
+      <circle cx={x + 229} cy={298} r={4.5} fill="#5a2323" />
+      <circle cx={x + 221} cy={316} r={7} fill="none" stroke="#e5a95f" strokeWidth="1.2" />
+      <circle cx={x + 221} cy={316} r={2} fill="#e5a95f" />
+    </g>
+  );
+
+  const Guest = ({ x, flip = false }: { x: number; flip?: boolean }) => (
+    <g transform={flip ? `translate(${x},0) scale(-1,1)` : `translate(${x},0)`}>
+      <circle cx={0} cy={252} r={10} fill="none" stroke="#aacdb8" strokeWidth="1.6" />
+      <path d="M-12 296 q0 -26 12 -26 q12 0 12 26" fill="none" stroke="#aacdb8" strokeWidth="1.6" />
+      <rect x={16} y={262} width={26} height={18} rx={2} fill="#122419" stroke="#e5a95f" strokeWidth="1.4" />
+      <path d="M20 268 h18 M20 273 h12" stroke="#e5a95f" strokeWidth="1" />
+      <text x={3} y={314} textAnchor="middle" fill="#74a88c" fontSize="8.5" style={mono} transform={flip ? "scale(-1,1)" : undefined}>
+        {flip ? "" : "гость с картой"}
+      </text>
+    </g>
+  );
+
+  return (
+    <svg viewBox="0 0 960 470" className="w-full" role="img" aria-label="Архитектура проекта: ресепшен, два терминала, Wi-Fi роутер и компьютер с отчётами">
+      {/* ---- линии данных: терминалы <-> роутер ---- */}
+      <path d="M448 92 C 380 140 320 165 250 205" className={flow} fill="none" stroke="#e5a95f" strokeWidth="1.6" opacity="0.9" />
+      <path d="M512 92 C 580 140 640 165 710 205" className={flow} fill="none" stroke="#e5a95f" strokeWidth="1.6" opacity="0.9" />
+      {/* ---- роутер -> компьютер отчётов ---- */}
+      <path d="M540 70 C 700 84 820 200 828 392" className={flow} fill="none" stroke="#e5a95f" strokeWidth="1.6" opacity="0.9" />
+      <text x="770" y="250" fill="#e5a95f" fontSize="10" style={mono} transform="rotate(58 770 250)">visits.csv</text>
+      {/* ---- маршруты гостей ---- */}
+      <path d="M196 392 L196 359" stroke="#74a88c" strokeWidth="1.4" strokeDasharray="3 5" markerEnd="url(#arr)" />
+      <path d="M296 418 C 480 440 560 400 628 359" stroke="#74a88c" strokeWidth="1.4" strokeDasharray="3 5" fill="none" markerEnd="url(#arr)" />
+      <defs>
+        <marker id="arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0 0 L10 5 L0 10 z" fill="#74a88c" />
+        </marker>
+      </defs>
+      {/* ---- питание ---- */}
+      <g>
+        <rect x="66" y="372" width="70" height="30" rx="3" fill="#122419" stroke="#d18a3e" strokeWidth="1.3" />
+        <text x="101" y="391" textAnchor="middle" fill="#d18a3e" fontSize="8.5" style={mono}>5V ⎓ 2A</text>
+        <path d="M136 380 C 160 376 168 366 172 355" className={flow} fill="none" stroke="#d18a3e" strokeWidth="1.4" opacity="0.85" />
+      </g>
+      <g>
+        <rect x="556" y="372" width="70" height="30" rx="3" fill="#122419" stroke="#d18a3e" strokeWidth="1.3" />
+        <text x="591" y="391" textAnchor="middle" fill="#d18a3e" fontSize="8.5" style={mono}>5V ⎓ 2A</text>
+        <path d="M626 380 C 650 376 658 366 662 355" className={flow} fill="none" stroke="#d18a3e" strokeWidth="1.4" opacity="0.85" />
+      </g>
+
+      {/* ---- Wi-Fi роутер ---- */}
+      <g>
+        <rect x="430" y="36" width="100" height="52" rx="5" fill="#122419" stroke="#45805f" strokeWidth="1.6" />
+        <line x1="455" y1="36" x2="447" y2="14" stroke="#45805f" strokeWidth="1.6" />
+        <line x1="505" y1="36" x2="513" y2="14" stroke="#45805f" strokeWidth="1.6" />
+        <circle cx="447" cy="13" r="2.4" fill="#45e08f">
+          <animate attributeName="opacity" values="1;0.2;1" dur="1.2s" repeatCount="indefinite" />
+        </circle>
+        <circle cx="513" cy="13" r="2.4" fill="#45e08f">
+          <animate attributeName="opacity" values="0.2;1;0.2" dur="1.2s" repeatCount="indefinite" />
+        </circle>
+        <text x="480" y="58" textAnchor="middle" fill="#d7e6dc" fontSize="11" fontWeight="bold" style={disp}>WI-FI</text>
+        <text x="480" y="76" textAnchor="middle" fill="#74a88c" fontSize="8.5" style={mono}>роутер отеля</text>
+      </g>
+
+      {/* ---- терминалы ---- */}
+      <Terminal x={95} num="1" name="Столовая" locId="1" />
+      <Terminal x={615} num="2" name="Ресторан" locId="2" />
+      <text x="220" y="196" textAnchor="middle" fill="#d7e6dc" fontSize="13" fontWeight="bold" style={disp}>СТОЛОВАЯ</text>
+      <text x="740" y="196" textAnchor="middle" fill="#d7e6dc" fontSize="13" fontWeight="bold" style={disp}>РЕСТОРАН</text>
+
+      {/* ---- гости ---- */}
+      <Guest x={52} />
+      <Guest x={908} flip />
+
+      {/* ---- ресепшен ---- */}
+      <g>
+        <rect x="96" y="392" width="200" height="52" rx="5" fill="#122419" stroke="#45805f" strokeWidth="1.6" />
+        <rect x="116" y="404" width="30" height="21" rx="2" fill="none" stroke="#e5a95f" strokeWidth="1.3" />
+        <rect x="122" y="409" width="30" height="21" rx="2" fill="#122419" stroke="#e5a95f" strokeWidth="1.3" />
+        <text x="212" y="415" textAnchor="middle" fill="#d7e6dc" fontSize="11" fontWeight="bold" style={disp}>РЕСЕПШЕН</text>
+        <text x="212" y="431" textAnchor="middle" fill="#74a88c" fontSize="8.5" style={mono}>выдача карт · кнопка регистрации</text>
+      </g>
+
+      {/* ---- компьютер отчётов ---- */}
+      <g>
+        <rect x="728" y="392" width="200" height="52" rx="5" fill="#122419" stroke="#45805f" strokeWidth="1.6" />
+        <rect x="746" y="402" width="30" height="20" rx="2" fill="none" stroke="#45e08f" strokeWidth="1.3" />
+        <line x1="740" y1="428" x2="782" y2="428" stroke="#45e08f" strokeWidth="1.6" />
+        <text x="858" y="415" textAnchor="middle" fill="#d7e6dc" fontSize="11" fontWeight="bold" style={disp}>ОТЧЁТЫ</text>
+        <text x="858" y="431" textAnchor="middle" fill="#74a88c" fontSize="8.5" style={mono}>браузер · HTML / TXT за период</text>
+      </g>
+    </svg>
+  );
+}
+
 export function WiringSection() {
   return (
     <section id="wiring" className="border-y border-ink-900/10 bg-paper-50 py-20 text-ink-900 md:py-28">
@@ -260,30 +391,67 @@ export function WiringSection() {
         <SectionHead
           light
           num="03"
-          title="Подключение"
-          sub="Собирается за вечер на макетной плате. Оба терминала абсолютно одинаковы — различаются только строкой LOCATION_ID в прошивке."
+          title="Схема подключения всего проекта"
+          sub="Два одинаковых терминала (столовая и ресторан) плюс общий Wi-Fi для сбора отчётов. Разница между терминалами — одна строка прошивки LOCATION_ID."
         />
-        <div className="grid gap-6 lg:grid-cols-[1.15fr_1fr]">
+
+        {/* -------- уровень 1: архитектура проекта -------- */}
+        <Reveal>
+          <div className="pcb-bg border border-pine-600 bg-pine-900 p-5 md:p-7">
+            <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+              <span className="font-display text-xs font-bold uppercase tracking-widest text-copper-400">
+                Архитектура проекта
+              </span>
+              <span className="flex flex-wrap items-center gap-4 font-mono text-[10px] text-pine-300">
+                <span className="flex items-center gap-1.5">
+                  <svg width="26" height="6"><line x1="0" y1="3" x2="26" y2="3" stroke="#e5a95f" strokeWidth="2" strokeDasharray="5 4" /></svg>
+                  данные (Wi-Fi)
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <svg width="26" height="6"><line x1="0" y1="3" x2="26" y2="3" stroke="#74a88c" strokeWidth="2" strokeDasharray="2 4" /></svg>
+                  путь гостя
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <svg width="26" height="6"><line x1="0" y1="3" x2="26" y2="3" stroke="#d18a3e" strokeWidth="2" /></svg>
+                  питание 5V
+                </span>
+              </span>
+            </div>
+            <SystemSchematic />
+            <p className="mt-4 border-t border-pine-700 pt-3 text-[12.5px] leading-relaxed text-pine-300">
+              Ресепшен выдаёт гостю карту Mifare Classic 1K и регистрирует её кнопкой на любом терминале. Гость прикладывает
+              карту у входа в столовую или ресторан — терминал решает, первый ли это визит в периоде. Оба терминала пишут
+              журнал в свою память и отдают файл <code className="font-mono text-copper-300">visits.csv</code> по Wi-Fi —
+              с компьютера администратора файлы сливаются в один отчёт за любой период.
+            </p>
+          </div>
+        </Reveal>
+
+        {/* -------- уровень 2: клеммы одного терминала -------- */}
+        <div className="mt-6 grid gap-6 lg:grid-cols-[1.15fr_1fr]">
           <Reveal>
             <div className="pcb-bg h-full border border-pine-600 bg-pine-900 p-5 md:p-7">
               <div className="mb-4 flex items-center justify-between">
                 <span className="font-display text-xs font-bold uppercase tracking-widest text-copper-400">
-                  Монтажная схема
+                  Клеммы одного терминала · × 2 шт
                 </span>
                 <span className="flex items-center gap-4 font-mono text-[10px] text-pine-300">
-                  <span className="flex items-center gap-1.5"><span className="h-0.5 w-5 bg-copper-400" /> сигнал</span>
-                  <span className="flex items-center gap-1.5"><span className="h-0.5 w-5 bg-pine-400" /> i²c / gnd</span>
+                  <span className="flex items-center gap-1.5"><span className="h-0.5 w-5 bg-copper-400" /> SPI</span>
+                  <span className="flex items-center gap-1.5"><span className="h-0.5 w-5 bg-pine-400" /> I²C / GND</span>
                 </span>
               </div>
               <Schematic />
             </div>
           </Reveal>
-          <div className="grid gap-4 content-start">
-            {WIRE_GROUPS.map((g, gi) => (
-              <Reveal key={g.title} delay={gi * 90}>
-                <div className="border border-ink-900/15 bg-white/60">
-                  <div className="border-b border-ink-900/10 px-4 py-2 font-mono text-[11px] uppercase tracking-widest text-copper-600">
-                    {g.title}
+
+          {/* монтажная ведомость */}
+          <div className="grid content-start gap-4">
+            {WIRE_ROWS.map((g, gi) => (
+              <Reveal key={g.group} delay={gi * 70}>
+                <div className="border border-ink-900/15 bg-white/70">
+                  <div className="flex items-center justify-between border-b border-ink-900/10 px-4 py-2">
+                    <span className="font-mono text-[11px] uppercase tracking-widest text-copper-600">{g.group}</span>
+                    <span className="font-mono text-[10px] text-ink-500">{g.rows.length} проводов</span>
                   </div>
                   <table className="w-full text-sm">
                     <tbody>
@@ -291,7 +459,13 @@ export function WiringSection() {
                         <tr key={r[0]} className="rtable border-b border-ink-900/8 last:border-0 hover:bg-copper-500/5">
                           <td className="px-4 py-2 font-medium">{r[0]}</td>
                           <td className="px-2 py-2 font-mono text-[12px] font-bold text-copper-600">{r[1]}</td>
-                          <td className="px-4 py-2 text-right text-[12.5px] text-ink-500">{r[2]}</td>
+                          <td className="px-2 py-2">
+                            <span className="flex items-center gap-1.5 font-mono text-[11px] text-ink-500">
+                              {r[3] ? <span className="inline-block h-3 w-3 border border-ink-900/20" style={{ background: r[3] }} /> : <span className="text-ink-500/50">—</span>}
+                              {r[2]}
+                            </span>
+                          </td>
+                          <td className="px-4 py-2 text-right text-[11.5px] text-ink-500">{r[4]}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -300,6 +474,38 @@ export function WiringSection() {
               </Reveal>
             ))}
           </div>
+        </div>
+
+        {/* -------- уровень 3: питание / сеть / монтаж -------- */}
+        <div className="mt-6 grid gap-4 md:grid-cols-[1.35fr_1fr_1fr]">
+          <Reveal delay={40}>
+            <div className="h-full border-l-4 border-amberled bg-white/70 p-5">
+              <h3 className="font-display text-xs font-bold uppercase tracking-widest text-copper-600">Питание</h3>
+              <ul className="mt-3 space-y-2 text-sm leading-relaxed text-ink-700">
+                <li>Каждый терминал питается от блока <b>5V ⎓ 2A</b> через micro-USB ESP32 — этого хватает на всю периферию.</li>
+                <li>RC522 берёт <b>3.3V</b> с пина 3V3 платы — от 5V модуль выходит из строя.</li>
+                <li>Все GND объединяются в одну шину. DS3231 держит время от батарейки CR1220.</li>
+              </ul>
+            </div>
+          </Reveal>
+          <Reveal delay={110}>
+            <div className="h-full border-l-4 border-pine-500 bg-white/70 p-5">
+              <h3 className="font-display text-xs font-bold uppercase tracking-widest text-copper-600">Сеть и адреса</h3>
+              <ul className="mt-3 space-y-2 text-sm leading-relaxed text-ink-700">
+                <li>SSID и пароль отеля — в начале прошивки. IP терминала печатается в мониторе порта при старте.</li>
+                <li>Без роутера терминал поднимает точку доступа <b>TALON-32</b> (пароль 12345678), адрес 192.168.4.1.</li>
+              </ul>
+            </div>
+          </Reveal>
+          <Reveal delay={180}>
+            <div className="h-full border-l-4 border-copper-500 bg-white/70 p-5">
+              <h3 className="font-display text-xs font-bold uppercase tracking-widest text-copper-600">Монтаж</h3>
+              <ul className="mt-3 space-y-2 text-sm leading-relaxed text-ink-700">
+                <li>Для постоянной работы — пайка вместо макетной платы, корпус с окном под антенну RC522.</li>
+                <li>Карту подносят к центру антенны на 2–4 см — считывание занимает меньше секунды.</li>
+              </ul>
+            </div>
+          </Reveal>
         </div>
       </div>
     </section>
